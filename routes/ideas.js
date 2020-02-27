@@ -9,7 +9,7 @@ const Idea = mongoose.model('ideas');
 
 // Idea Index Page
 router.get('/', ensureAuthenticated, (req, res) => {
-  Idea.find({})
+  Idea.find({user: req.user.id})
     .sort({date: 'desc'})
     .then(ideas => {
       res.render('ideas/index', {
@@ -29,9 +29,14 @@ router.get('/edit/:id', ensureAuthenticated, (req, res) => {
     _id: req.params.id
   }).
     then(idea => {
-      res.render('ideas/edit', {
-        idea: idea,
-      });
+      if (idea.user !== req.user.id) {
+        req.flash('error_msg', 'Not Authorized');
+        res.redirect('/ideas');
+      } else {
+        res.render('ideas/edit', {
+          idea: idea,
+        });
+      }
     });
 });
 
@@ -52,11 +57,12 @@ router.post('/', ensureAuthenticated, (req, res) => {
       details: req.body.details,
     });
   } else {
-    const newUser = {
+    const newIdea = {
       title: req.body.title,
       details: req.body.details,
+      user: req.user.id,
     };
-    new Idea(newUser)
+    new Idea(newIdea)
       .save()
       .then(idea => {
         req.flash('success_msg', 'Video idea added');
@@ -71,25 +77,41 @@ router.put('/:id', ensureAuthenticated, (req, res) => {
     _id: req.params.id,
   })
     .then(idea => {
-      //new values
-      idea.title = req.body.title;
-      idea.details = req.body.details;
+      if (idea.user !== req.user.id) {
+        req.flash('error_msg', 'Not Authorized');
+        res.redirect('/ideas');
+      } else {
+        //new values
+        idea.title = req.body.title;
+        idea.details = req.body.details;
 
-      idea.save()
-        .then(new_idea => {
-          req.flash('success_msg', 'Video idea updated');
-          res.redirect('/ideas');
-        });
+        idea.save()
+          .then(new_idea => {
+            req.flash('success_msg', 'Video idea updated');
+            res.redirect('/ideas');
+          });        
+        }
     });
 });
 
 // Delete Idea
 router.delete('/:id', ensureAuthenticated, (req, res) => {
-  Idea.remove({_id: req.params.id})
-    .then(() => {
-      req.flash('success_msg', 'Video idea removed');
-      res.redirect('/ideas');
-    });
+  Idea.findOne({
+    user: req.user.id,
+    _id: req.params.id,
+  })
+    .then(idea => {
+      if (!idea) {
+        req.flash('error_msg', 'No messages found');
+        res.redirect('/ideas');       
+      } else {
+        Idea.remove({_id: req.params.id})
+          .then(() => {
+            req.flash('success_msg', 'Video idea removed');
+            res.redirect('/ideas');
+          });        
+      }
+    })
 });
 
 module.exports = router;

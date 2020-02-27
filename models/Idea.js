@@ -14,7 +14,11 @@ const IdeaSchema = new Schema({
   date: {
     type: Date,
     default: Date.now
-  }
+  },
+  user: {
+    type: String, 
+    require: true
+  },
 });
 
 mongoose.model('ideas', IdeaSchema);
